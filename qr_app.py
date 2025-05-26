@@ -1,17 +1,16 @@
-# app.py
 import streamlit as st
 import qrcode
 import io
 import base64
 from urllib.parse import quote
-import tempfile
-import os
 
 def generate_copy_page_html(text):
-    """Generate HTML for the copy page"""
+    """Generate HTML for the copy page with improved styling and direct copy."""
+    # Escape HTML to prevent injection and display correctly
     escaped_text = text.replace('<', '&lt;').replace('>', '&gt;').replace('\n', '<br>')
-    json_text = text.replace('"', '\\"').replace('\n', '\\n')
-    
+    # Escape for JavaScript string literal
+    json_text = text.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '')
+
     html_content = f'''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -28,6 +27,7 @@ def generate_copy_page_html(text):
             display: flex;
             align-items: center;
             justify-content: center;
+            color: #333;
         }}
         .container {{
             background: white;
@@ -37,6 +37,7 @@ def generate_copy_page_html(text):
             max-width: 500px;
             width: 100%;
             text-align: center;
+            box-sizing: border-box;
         }}
         .icon {{
             font-size: 48px;
@@ -65,6 +66,7 @@ def generate_copy_page_html(text):
             text-align: left;
             max-height: 200px;
             overflow-y: auto;
+            white-space: pre-wrap; /* Preserves whitespace and line breaks */
         }}
         .copy-btn {{
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -100,6 +102,10 @@ def generate_copy_page_html(text):
                 margin: 10px;
                 padding: 30px 20px;
             }}
+            .copy-btn {{
+                font-size: 16px;
+                padding: 12px 25px;
+            }}
         }}
     </style>
 </head>
@@ -108,9 +114,9 @@ def generate_copy_page_html(text):
         <div class="icon">📋</div>
         <h1>Copy Text Content</h1>
         <p class="subtitle">Tap the button below to copy this text to your clipboard</p>
-        
+
         <div class="text-content">{escaped_text}</div>
-        
+
         <button class="copy-btn" id="copyBtn" onclick="copyText()">
             <span id="btnIcon">📄</span>
             <span id="btnText">Copy to Clipboard</span>
@@ -118,13 +124,13 @@ def generate_copy_page_html(text):
     </div>
 
     <script>
-        const textToCopy = "{json_text}";
-        
+        const textToCopy = `{json_text}`; // Use backticks for template literals
+
         function copyText() {{
             const btn = document.getElementById('copyBtn');
             const btnIcon = document.getElementById('btnIcon');
             const btnText = document.getElementById('btnText');
-            
+
             if (navigator.clipboard) {{
                 navigator.clipboard.writeText(textToCopy).then(() => {{
                     showSuccess();
@@ -134,19 +140,19 @@ def generate_copy_page_html(text):
             }} else {{
                 fallbackCopy();
             }}
-            
+
             function showSuccess() {{
                 btn.classList.add('success');
                 btnIcon.textContent = '✅';
                 btnText.textContent = 'Copied!';
-                
+
                 setTimeout(() => {{
                     btn.classList.remove('success');
                     btnIcon.textContent = '📄';
                     btnText.textContent = 'Copy to Clipboard';
                 }}, 2000);
             }}
-            
+
             function fallbackCopy() {{
                 const textArea = document.createElement('textarea');
                 textArea.value = textToCopy;
@@ -156,14 +162,14 @@ def generate_copy_page_html(text):
                 document.body.appendChild(textArea);
                 textArea.focus();
                 textArea.select();
-                
+
                 try {{
                     document.execCommand('copy');
                     showSuccess();
                 }} catch (err) {{
                     btnText.textContent = 'Copy failed - select text above';
                 }}
-                
+
                 document.body.removeChild(textArea);
             }}
         }}
@@ -173,166 +179,78 @@ def generate_copy_page_html(text):
     return html_content
 
 def create_qr_code(data):
-    """Generate QR code image"""
+    """Generate QR code image from data."""
     qr = qrcode.QRCode(
-        version=1,
+        version=None,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
         box_size=10,
         border=4,
     )
     qr.add_data(data)
     qr.make(fit=True)
-    
+
     img = qr.make_image(fill_color="black", back_color="white")
-    
-    # Convert PIL image to bytes
+
     img_buffer = io.BytesIO()
     img.save(img_buffer, format='PNG')
     img_buffer.seek(0)
-    
-    return img_buffer
 
-def create_github_pages_url(username, repo_name, text):
-    """Create URL for GitHub Pages hosted HTML file"""
-    encoded_text = quote(text)
-    return f"https://{username}.github.io/{repo_name}/copy.html?text={encoded_text}"
+    return img_buffer
 
 def main():
     st.set_page_config(
-        page_title="QR Code Text Copier",
+        page_title="Simple QR Text Copier",
         page_icon="📋",
-        layout="wide"
+        layout="centered" # Changed to centered for simplicity
     )
-    
-    st.title("📋 QR Code Text Copier")
-    st.markdown("Create QR codes that link to copy-friendly pages for easy text sharing")
-    
-    # Sidebar for configuration
-    with st.sidebar:
-        st.header("⚙️ Configuration")
-        
-        # GitHub Pages option
-        use_github_pages = st.checkbox("Use GitHub Pages for hosting", value=False)
-        
-        if use_github_pages:
-            github_username = st.text_input("GitHub Username", placeholder="your-username")
-            repo_name = st.text_input("Repository Name", placeholder="qr-text-copier")
-            
-            if github_username and repo_name:
-                st.success(f"Pages URL: {github_username}.github.io/{repo_name}")
-        else:
-            st.info("Using data URL (works locally but may have limitations)")
-    
-    # Main content
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        st.header("📝 Enter Your Text")
-        
-        text_content = st.text_area(
-            "Text Content",
-            placeholder="Enter the text you want users to easily copy...",
-            height=150,
-            label_visibility="collapsed"
-        )
-        
-        if text_content:
-            st.markdown("**Text Preview:**")
-            with st.container():
-                st.code(text_content, language=None)
-            
-            # Generate copy page HTML
-            html_content = generate_copy_page_html(text_content)
-            
-            # Show HTML download
+
+    st.title("📋 Simple QR Text Copier")
+    st.markdown("Enter text below, get a QR code. When scanned, it opens a page where the text can be copied.")
+
+    text_content = st.text_area(
+        "Text to be copied:",
+        placeholder="Enter the text you want users to easily copy...",
+        height=200
+    )
+
+    if text_content:
+        # Generate the HTML content for the copy page
+        html_content = generate_copy_page_html(text_content)
+
+        # Encode HTML content to base64 for data URL
+        html_b64 = base64.b64encode(html_content.encode('utf-8')).decode('utf-8')
+        qr_url = f"data:text/html;base64,{html_b64}"
+
+        st.subheader("Your QR Code")
+        try:
+            qr_image = create_qr_code(qr_url)
+
+            st.image(qr_image, caption="Scan this QR code", width=300)
+
             st.download_button(
-                label="📄 Download Copy Page HTML",
-                data=html_content,
-                file_name="copy.html",
-                mime="text/html"
+                label="💾 Download QR Code (PNG)",
+                data=qr_image.getvalue(),
+                file_name="qr_copy_text.png",
+                mime="image/png"
             )
-            
-            # Generate URL for QR code
-            if use_github_pages and github_username and repo_name:
-                qr_url = create_github_pages_url(github_username, repo_name, text_content)
-                st.info(f"QR will link to: `{qr_url}`")
-            else:
-                # Use data URL
-                html_b64 = base64.b64encode(html_content.encode()).decode()
-                qr_url = f"data:text/html;base64,{html_b64}"
-                st.warning("Using data URL - this may not work on all QR scanners. Consider using GitHub Pages.")
-    
-    with col2:
-        st.header("📱 QR Code")
-        
-        if text_content:
-            try:
-                # Generate QR code
-                if use_github_pages and github_username and repo_name:
-                    qr_url = create_github_pages_url(github_username, repo_name, text_content)
-                else:
-                    html_b64 = base64.b64encode(html_content.encode()).decode()
-                    qr_url = f"data:text/html;base64,{html_b64}"
-                
-                qr_image = create_qr_code(qr_url)
-                
-                # Display QR code
-                st.image(qr_image, caption="Scan this QR code", width=300)
-                
-                # Download button for QR code
-                st.download_button(
-                    label="💾 Download QR Code",
-                    data=qr_image.getvalue(),
-                    file_name="qr-code.png",
-                    mime="image/png"
-                )
-                
-            except Exception as e:
-                st.error(f"Error generating QR code: {str(e)}")
-        else:
-            st.info("Enter text to generate QR code")
-    
-    # Instructions
+
+            st.info("The QR code contains a direct link to the copy page. No external hosting needed!")
+
+        except Exception as e:
+            st.error(f"Error generating QR code: {str(e)}")
+            st.warning("The text might be too long for a data URL QR code. Try shorter text or consider hosting the HTML page externally if this persists.")
+
+    else:
+        st.info("Enter some text above to generate your QR code.")
+
     st.markdown("---")
-    st.header("📖 How It Works")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.markdown("**1. 📝 Enter Text**")
-        st.markdown("Type the text you want users to copy")
-    
-    with col2:
-        st.markdown("**2. 📱 Generate QR**")
-        st.markdown("QR code links to copy page")
-    
-    with col3:
-        st.markdown("**3. 🔍 User Scans**")
-        st.markdown("Opens beautiful copy page")
-    
-    with col4:
-        st.markdown("**4. 📋 One-Tap Copy**")
-        st.markdown("Big button copies text instantly")
-    
-    # GitHub Pages setup instructions
-    if use_github_pages:
-        st.markdown("---")
-        st.header("🚀 GitHub Pages Setup")
-        st.markdown("""
-        **To use GitHub Pages hosting:**
-        
-        1. Create a new repository on GitHub (e.g., `qr-text-copier`)
-        2. Download the `copy.html` file using the button above
-        3. Upload `copy.html` to your repository
-        4. Enable GitHub Pages in repository settings
-        5. Your copy page will be available at: `https://username.github.io/repo-name/copy.html`
-        
-        **Benefits of GitHub Pages:**
-        - ✅ Works with all QR scanners
-        - ✅ Fast loading times
-        - ✅ Free hosting
-        - ✅ Custom domain support
-        """)
+    st.subheader("How it works:")
+    st.markdown("""
+    1.  **Enter Text:** Type your desired text in the box above.
+    2.  **Get QR Code:** A QR code is generated instantly.
+    3.  **Scan & Copy:** When someone scans the QR code, it opens a simple web page in their browser.
+    4.  **One-Tap Copy:** On that page, they can tap a button to copy your text directly to their clipboard.
+    """)
 
 if __name__ == "__main__":
     main()
