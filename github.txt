@@ -1,0 +1,62 @@
+# README.md
+# QR Code Text Copier
+
+A Streamlit app that generates QR codes linking to copy-friendly web pages for easy text sharing.
+
+## Features
+
+- 📝 Simple text input interface
+- 📱 Generates QR codes that link to beautiful copy pages
+- 📋 One-tap copying experience for users
+- 🚀 GitHub Pages integration for reliable hosting
+- 💾 Download QR codes and HTML files
+
+## Live Demo
+
+[Visit the live app on Streamlit Cloud](your-streamlit-url-here)
+
+## How It Works
+
+1. **Enter your text** in the Streamlit app
+2. **Generate QR code** that links to a custom copy page
+3. **Users scan QR code** and get a beautiful webpage
+4. **One-tap copy** button instantly copies your text
+
+## Local Development
+
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+## Deploy to Streamlit Cloud
+
+1. Fork this repository
+2. Connect your GitHub account to Streamlit Cloud
+3. Deploy from your forked repository
+4. Your app will be live at: `https://your-app-name.streamlit.app`
+
+## GitHub Pages Setup (Recommended)
+
+For the most reliable QR code experience:
+
+1. Enable GitHub Pages in your repository settings
+2. Use the "Use GitHub Pages" option in the app
+3. Upload the generated `copy.html` files to your repository
+
+## License
+
+MIT License
+
+---
+
+# .streamlit/config.toml
+[theme]
+primaryColor = "#667eea"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f0f2f6"
+textColor = "#1e1e1e"
+
+[server]
+headless = true
+port = 8501

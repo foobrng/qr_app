@@ -1,0 +1,4 @@
+qrcode
+streamlit==1.28.0
+qrcode[pil]
+Pillow
