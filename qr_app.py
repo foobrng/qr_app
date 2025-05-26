@@ -5,10 +5,11 @@ import base64
 from urllib.parse import quote
 
 def generate_copy_page_html(text):
-    """Generate HTML for the copy page with improved styling and direct copy."""
+    """Generate HTML for the copy page with styling and direct copy."""
     # Escape HTML to prevent injection and display correctly
     escaped_text = text.replace('<', '&lt;').replace('>', '&gt;').replace('\n', '<br>')
     # Escape for JavaScript string literal
+    # Using JSON.parse to safely handle multi-line strings with quotes
     json_text = text.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '')
 
     html_content = f'''<!DOCTYPE html>
@@ -124,7 +125,7 @@ def generate_copy_page_html(text):
     </div>
 
     <script>
-        const textToCopy = `{json_text}`; // Use backticks for template literals
+        const textToCopy = `{json_text}`; // Use backticks for template literals to handle multi-line
 
         function copyText() {{
             const btn = document.getElementById('copyBtn');
@@ -182,7 +183,7 @@ def create_qr_code(data):
     """Generate QR code image from data."""
     qr = qrcode.QRCode(
         version=None,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        error_correction=qrcode.constants.ERROR_CORRECT_L, # Low error correction for maximum data capacity
         box_size=10,
         border=4,
     )
@@ -199,57 +200,80 @@ def create_qr_code(data):
 
 def main():
     st.set_page_config(
-        page_title="Simple QR Text Copier",
+        page_title="QR Code Text Copier (Simple)",
         page_icon="📋",
-        layout="centered" # Changed to centered for simplicity
+        layout="centered"
     )
 
-    st.title("📋 Simple QR Text Copier")
-    st.markdown("Enter text below, get a QR code. When scanned, it opens a page where the text can be copied.")
+    st.title("📋 QR Code Text Copier (Simple)")
+    st.markdown("Create QR codes that link to a webpage where text can be copied with one tap.")
 
+    st.subheader("1. Enter Your Text")
     text_content = st.text_area(
-        "Text to be copied:",
-        placeholder="Enter the text you want users to easily copy...",
+        "Type or paste the text you want users to copy:",
+        placeholder="e.g., Your Wi-Fi password, a message, a long URL...",
         height=200
     )
 
     if text_content:
-        # Generate the HTML content for the copy page
+        st.subheader("2. Download the Copy Page HTML")
         html_content = generate_copy_page_html(text_content)
 
-        # Encode HTML content to base64 for data URL
-        html_b64 = base64.b64encode(html_content.encode('utf-8')).decode('utf-8')
-        qr_url = f"data:text/html;base64,{html_b64}"
+        st.download_button(
+            label="⬇️ Download copy.html",
+            data=html_content,
+            file_name="copy.html",
+            mime="text/html",
+            help="Download this file and host it online (e.g., on GitHub Pages, Netlify, or your own web server)."
+        )
 
-        st.subheader("Your QR Code")
-        try:
-            qr_image = create_qr_code(qr_url)
+        st.info("You need to host this `copy.html` file online so that the QR code can link to it.")
 
-            st.image(qr_image, caption="Scan this QR code", width=300)
+        st.subheader("3. Enter the Public URL of your Hosted HTML")
+        hosted_url = st.text_input(
+            "Public URL where you hosted 'copy.html':",
+            placeholder="e.g., https://your-username.github.io/your-repo/copy.html"
+        )
 
-            st.download_button(
-                label="💾 Download QR Code (PNG)",
-                data=qr_image.getvalue(),
-                file_name="qr_copy_text.png",
-                mime="image/png"
-            )
+        if hosted_url:
+            st.subheader("4. Your QR Code")
+            try:
+                qr_image = create_qr_code(hosted_url)
 
-            st.info("The QR code contains a direct link to the copy page. No external hosting needed!")
+                st.image(qr_image, caption="Scan this QR code to access your text", width=300)
 
-        except Exception as e:
-            st.error(f"Error generating QR code: {str(e)}")
-            st.warning("The text might be too long for a data URL QR code. Try shorter text or consider hosting the HTML page externally if this persists.")
+                st.download_button(
+                    label="💾 Download QR Code (PNG)",
+                    data=qr_image.getvalue(),
+                    file_name="qr_copy_text.png",
+                    mime="image/png"
+                )
+                st.markdown(f"**QR Code links to:** `{hosted_url}`")
+                st.success("QR code generated successfully!")
+
+            except Exception as e:
+                st.error(f"Error generating QR code: {str(e)}")
+                st.warning("Please ensure the URL is valid and try again. Very long URLs can still cause issues, but this is less likely than with data URLs.")
+        else:
+            st.warning("Please provide the public URL where you hosted your `copy.html` file to generate the QR code.")
 
     else:
-        st.info("Enter some text above to generate your QR code.")
+        st.info("Enter some text above to start generating your copy page and QR code.")
 
     st.markdown("---")
-    st.subheader("How it works:")
+    st.subheader("How It Works (Revised):")
     st.markdown("""
-    1.  **Enter Text:** Type your desired text in the box above.
-    2.  **Get QR Code:** A QR code is generated instantly.
-    3.  **Scan & Copy:** When someone scans the QR code, it opens a simple web page in their browser.
-    4.  **One-Tap Copy:** On that page, they can tap a button to copy your text directly to their clipboard.
+    1.  **Enter Text:** Type the text you want copied.
+    2.  **Download HTML:** Get a specially designed `copy.html` file.
+    3.  **Host HTML:** **Crucially**, you need to upload this `copy.html` file to a public web server (like GitHub Pages, Netlify, etc.). This makes it accessible via a short, stable URL.
+    4.  **Enter Hosted URL:** Paste that public URL back into this app.
+    5.  **Generate QR Code:** The app then creates a QR code that points to your hosted `copy.html` page.
+    6.  **Scan & Copy:** When someone scans the QR, it opens your hosted page, where they can tap a button to copy the text.
+    """)
+    st.markdown("""
+    **Why this approach?**
+    QR codes have limited data capacity. Directly embedding a full HTML page into the QR code (via a data URL) often exceeds this limit, especially for longer texts, leading to errors like "Invalid version".
+    By hosting the HTML file and linking to it, the QR code only needs to store a short URL, which is much more reliable.
     """)
 
 if __name__ == "__main__":
